@@ -1,5 +1,7 @@
 #include "include/SDL.h"
 #include "include/SDL_ttf.h"
+#include <iostream>
+#include <sstream>
 #include <vector>
 #undef main
 
@@ -7,12 +9,14 @@ class Game {
 public:
     Game() : running(true), score(0), currentDirection(RIGHT), nextDirection(RIGHT) {
         Initialize();
+        LoadFont();
     }
 
     ~Game() {
         Cleanup();
     }
 
+    int score;
     void Run() {
         while (running) {
             HandleInput();
@@ -24,9 +28,9 @@ public:
 private:
     SDL_Window* window;
     SDL_Renderer* renderer;
+    TTF_Font* font;
 
     bool running;
-    int score;
 
     enum Direction { UP, DOWN, LEFT, RIGHT };
     Direction currentDirection;
@@ -48,10 +52,17 @@ private:
         renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
         // Initialize snake
-        snake.push_back({ 10, 10 });
+        snake.push_back({ 0, 0 });
 
         // Initialize food
         SpawnFood();
+    }
+
+    void LoadFont() {
+        font = TTF_OpenFont("font.ttf", 24); // Replace with the path to your font file
+        if (!font) {
+            std::cerr << "Failed to load font: " << TTF_GetError() << std::endl;
+        }
     }
 
     void HandleInput() {
@@ -122,11 +133,11 @@ private:
     }
 
     void Render() {
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_SetRenderDrawColor(renderer, 0, 2, 0, 255);
         SDL_RenderClear(renderer);
 
         // Render snake
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_SetRenderDrawColor(renderer, 25, 255, 255, 255);
         for (const auto& segment : snake) {
             SDL_Rect rect = { segment.x * 20, segment.y * 20, 20, 20 };
             SDL_RenderFillRect(renderer, &rect);
@@ -137,14 +148,33 @@ private:
         SDL_Rect foodRect = { food.x * 20, food.y * 20, 20, 20 };
         SDL_RenderFillRect(renderer, &foodRect);
 
+        // Render score using SDL_ttf
+        RenderScore();
+
         SDL_RenderPresent(renderer);
 
         SDL_Delay(100);
     }
 
+    void RenderScore() {
+        SDL_Color textColor = { 0, 0, 255 };
+        std::string scoreText = "Score: " + std::to_string(score);
+
+        SDL_Surface* surface = TTF_RenderText_Solid(font, scoreText.c_str(), textColor);
+        
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+        
+        SDL_Rect textRect = { 320-surface->w/2 , 10, surface->w, surface->h };
+        SDL_RenderCopy(renderer, texture, NULL, &textRect);
+
+        SDL_FreeSurface(surface);
+        SDL_DestroyTexture(texture);
+    }
+
     void Cleanup() {
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
+        TTF_CloseFont(font);
         TTF_Quit();
         SDL_Quit();
     }
@@ -173,8 +203,10 @@ private:
 };
 
 int main(int argc, char* args[]) {
-    Game game;
-    game.Run();
+    Game snakeGame;
+    snakeGame.Run();
 
     return 0;
 }
+
+//g++ -Llib -Iinclude main.cpp -lSDL2 -lSDL2_ttf
